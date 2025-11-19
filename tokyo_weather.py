@@ -10,6 +10,10 @@ import os
 import requests
 from typing import Dict, Optional
 from dotenv import load_dotenv
+from colorama import Fore, Back, Style, init
+
+# Coloramaを初期化 (Initialize colorama)
+init(autoreset=True)
 
 
 class TokyoWeatherClient:
@@ -75,6 +79,57 @@ class TokyoWeatherClient:
                 f"天気情報の取得に失敗しました (Failed to fetch weather information): {e}"
             ) from e
     
+    def _get_weather_emoji(self, weather_desc: str) -> str:
+        """
+        天気の説明に基づいて絵文字を返す
+        Return emoji based on weather description
+        
+        Args:
+            weather_desc: 天気の説明 (Weather description)
+            
+        Returns:
+            対応する絵文字 (Corresponding emoji)
+        """
+        weather_desc_lower = weather_desc.lower()
+        
+        # 天気状態に応じた絵文字マッピング (Emoji mapping based on weather conditions)
+        if any(word in weather_desc_lower for word in ['晴', 'clear', 'sunny']):
+            return '☀️'
+        elif any(word in weather_desc_lower for word in ['雲', 'cloud', '曇']):
+            return '☁️'
+        elif any(word in weather_desc_lower for word in ['雨', 'rain', 'drizzle']):
+            return '🌧️'
+        elif any(word in weather_desc_lower for word in ['雪', 'snow']):
+            return '❄️'
+        elif any(word in weather_desc_lower for word in ['雷', 'thunder', 'storm']):
+            return '⚡'
+        elif any(word in weather_desc_lower for word in ['霧', 'fog', 'mist', 'haze']):
+            return '🌫️'
+        else:
+            return '🌤️'
+    
+    def _get_temp_color(self, temp: float) -> str:
+        """
+        温度に基づいて色を返す
+        Return color based on temperature
+        
+        Args:
+            temp: 温度 (Temperature in Celsius)
+            
+        Returns:
+            ANSI色コード (ANSI color code)
+        """
+        if temp >= 30:
+            return Fore.RED + Style.BRIGHT  # 暑い (Hot)
+        elif temp >= 25:
+            return Fore.YELLOW + Style.BRIGHT  # 暖かい (Warm)
+        elif temp >= 15:
+            return Fore.GREEN + Style.BRIGHT  # 快適 (Comfortable)
+        elif temp >= 5:
+            return Fore.CYAN + Style.BRIGHT  # 涼しい (Cool)
+        else:
+            return Fore.BLUE + Style.BRIGHT  # 寒い (Cold)
+    
     def get_formatted_weather(self, units: str = "metric", lang: str = "ja") -> str:
         """
         東京の天気情報を整形された文字列で取得する
@@ -100,18 +155,35 @@ class TokyoWeatherClient:
         humidity = data['main']['humidity']
         wind_speed = data['wind']['speed']
         
+        # 天気絵文字を取得 (Get weather emoji)
+        weather_emoji = self._get_weather_emoji(weather_desc)
+        
+        # 温度の色を取得 (Get temperature color)
+        temp_color = self._get_temp_color(temp) if units == "metric" else Fore.YELLOW + Style.BRIGHT
+        
+        # ボックス描画文字 (Box drawing characters)
+        top_line = "╔" + "═" * 58 + "╗"
+        bottom_line = "╚" + "═" * 58 + "╝"
+        
+        # カラフルで豪華な出力を作成 (Create colorful and luxurious output)
         formatted = f"""
-========================================
-東京の天気情報 (Tokyo Weather Information)
-========================================
-天気: {weather_desc}
-気温: {temp}{temp_unit}
-体感温度: {feels_like}{temp_unit}
-最低気温: {temp_min}{temp_unit}
-最高気温: {temp_max}{temp_unit}
-湿度: {humidity}%
-風速: {wind_speed} m/s
-========================================
+{Fore.CYAN + Style.BRIGHT}{top_line}{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW + Style.BRIGHT}🌏  東京の天気情報  Tokyo Weather Information  🌏{Style.RESET_ALL}    {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN + Style.BRIGHT}╠{"═" * 58}╣{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}                                                          {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {weather_emoji}  {Fore.WHITE + Style.BRIGHT}天気:{Style.RESET_ALL} {Fore.MAGENTA + Style.BRIGHT}{weather_desc:^45s}{Style.RESET_ALL} {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}                                                          {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}╠{"─" * 58}╣{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}🌡️  気温:{Style.RESET_ALL}         {temp_color}{temp:>6.1f}{temp_unit}{Style.RESET_ALL}                              {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}👤 体感温度:{Style.RESET_ALL}     {temp_color}{feels_like:>6.1f}{temp_unit}{Style.RESET_ALL}                              {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}❄️  最低気温:{Style.RESET_ALL}     {Fore.BLUE + Style.BRIGHT}{temp_min:>6.1f}{temp_unit}{Style.RESET_ALL}                              {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}🔥 最高気温:{Style.RESET_ALL}     {Fore.RED + Style.BRIGHT}{temp_max:>6.1f}{temp_unit}{Style.RESET_ALL}                              {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}                                                          {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}╠{"─" * 58}╣{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}💧 湿度:{Style.RESET_ALL}         {Fore.LIGHTBLUE_EX + Style.BRIGHT}{humidity:>5d}%{Style.RESET_ALL}                                {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}  {Fore.WHITE + Style.BRIGHT}💨 風速:{Style.RESET_ALL}         {Fore.LIGHTGREEN_EX + Style.BRIGHT}{wind_speed:>5.1f} m/s{Style.RESET_ALL}                          {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN}║{Style.RESET_ALL}                                                          {Fore.CYAN}║{Style.RESET_ALL}
+{Fore.CYAN + Style.BRIGHT}{bottom_line}{Style.RESET_ALL}
 """
         return formatted.strip()
 
